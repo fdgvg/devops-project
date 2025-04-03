@@ -1,0 +1,14 @@
+{
+  "name": "devops-project",
+  "version": "1.0.0",
+  "description": "Simple Node.js App for Azure DevOps CI/CD Pipeline",
+  "main": "app.js",
+  "scripts": {
+    "start": "node app.js"
+  },
+  "author": "Your Name",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.18.2"
+  }
+}
