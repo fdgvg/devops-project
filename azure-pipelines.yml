@@ -1,6 +1,9 @@
 trigger:
   - main
 
+variables:
+- group: sec variable  # 👈 Your variable group name
+
 pool:
   vmImage: 'ubuntu-latest'
 
@@ -15,11 +18,18 @@ stages:
           - task: AzureCLI@2
             displayName: 'Terraform Init + Import + Apply'
             inputs:
-              azureSubscription: 'AzureSPN'  # your service connection
+              azureSubscription: 'AzureSPN'
               scriptType: 'bash'
               scriptLocation: 'inlineScript'
               inlineScript: |
+                echo "✅ Setting Azure authentication ENV vars..."
+                export ARM_SUBSCRIPTION_ID=$(subscription_id)
+                export ARM_TENANT_ID=$(tenant_id)
+                export ARM_CLIENT_ID=$(client_id)
+                export ARM_CLIENT_SECRET=$(client_secret)
+
+                echo "🚀 Starting Terraform"
                 cd infra
                 terraform init
-                terraform import azurerm_resource_group.rg /subscriptions/4f654df7-d18f-4498-a919-94cc466fcbd6/resourceGroups/devops-rg || true
+                terraform import azurerm_resource_group.rg /subscriptions/$(subscription_id)/resourceGroups/devops-rg || true
                 terraform apply -auto-approve
