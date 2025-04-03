@@ -15,11 +15,14 @@ stages:
         - task: AzureCLI@2
           displayName: 'Terraform Init, Plan and Apply'
           inputs:
-            azureSubscription: 'AzureSPN'  # <-- Make sure this matches the service connection name
+            azureSubscription: 'AzureSPN'  # replace with your service connection
             scriptType: 'bash'
             scriptLocation: 'inlineScript'
             inlineScript: |
-              echo "Running Terraform Init, Plan, Apply"
+              echo "Fetching Azure details"
+              export ARM_SUBSCRIPTION_ID=$(az account show --query id -o tsv)
+              export ARM_TENANT_ID=$(az account show --query tenantId -o tsv)
+              echo "Starting Terraform"
               cd infra
               terraform init
               terraform plan
