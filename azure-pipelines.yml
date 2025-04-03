@@ -1,43 +1,26 @@
 trigger:
   - main
 
-pool:
-  vmImage: 'ubuntu-latest'
-
-steps:
-- task: NodeTool@0
-  inputs:
-    versionSpec: '18.x'
-  displayName: 'Install Node.js'
-
-- script: |
-    npm install
-    npm start &
-  displayName: 'Install dependencies and start app'
-
 stages:
 - stage: Terraform_Deploy
-  displayName: 'Terraform Deployment'
+  displayName: 'Terraform Infrastructure Deployment'
   jobs:
     - job: TerraformJob
-      displayName: 'Terraform Init & Apply'
+      displayName: 'Run Terraform to provision App Services'
       pool:
-        vmImage: ubuntu-latest
+        vmImage: 'ubuntu-latest'
       steps:
-        - task: UsePythonVersion@0
-          inputs:
-            versionSpec: '3.x'
-
-        - task: TerraformInstaller@0
-          inputs:
-            terraformVersion: 'latest'
-
         - checkout: self
 
-        - script: |
-            cd infra
-            terraform init
-            terraform plan
-            terraform apply -auto-approve
-          displayName: 'Run Terraform'
-
+        - task: AzureCLI@2
+          displayName: 'Terraform Init, Plan and Apply'
+          inputs:
+            azureSubscription: 'AzureSPN'  # <-- Make sure this matches the service connection name
+            scriptType: 'bash'
+            scriptLocation: 'inlineScript'
+            inlineScript: |
+              echo "Running Terraform Init, Plan, Apply"
+              cd infra
+              terraform init
+              terraform plan
+              terraform apply -auto-approve
