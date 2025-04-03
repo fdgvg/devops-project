@@ -1,0 +1,18 @@
+- job: TerraformJob
+  displayName: 'Terraform Init & Apply'
+  pool:
+    vmImage: ubuntu-latest
+  steps:
+    - checkout: self
+
+    - task: AzureCLI@2
+      inputs:
+        azureSubscription: 'AzureSPN'
+        scriptType: 'bash'
+        scriptLocation: 'inlineScript'
+        inlineScript: |
+          echo "Running Terraform"
+          cd infra
+          terraform init
+          terraform plan
+          terraform apply -auto-approve
