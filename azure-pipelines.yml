@@ -1,8 +1,9 @@
 trigger:
   - main
 
+# Load secret variables from Azure DevOps variable group
 variables:
-- group: sec variable  # 👈 Your variable group name
+- group: sec variable  # Replace with your actual variable group name
 
 pool:
   vmImage: 'ubuntu-latest'
@@ -12,28 +13,36 @@ stages:
     displayName: 'Terraform Deployment'
     jobs:
       - job: TerraformJob
+        displayName: 'Deploy Terraform Infra'
         steps:
           - checkout: self
 
           - task: AzureCLI@2
             displayName: 'Terraform Init + Import + Apply'
             inputs:
-              azureSubscription: 'AzureSPN'
+              azureSubscription: 'AzureSPN'  # Replace with your service connection name
               scriptType: 'bash'
               scriptLocation: 'inlineScript'
               inlineScript: |
-                echo "✅ Setting Azure authentication ENV vars..."
+                echo "✅ Exporting Azure authentication ENV vars..."
                 export ARM_SUBSCRIPTION_ID=$(subscription_id)
                 export ARM_TENANT_ID=$(tenant_id)
                 export ARM_CLIENT_ID=$(client_id)
                 export ARM_CLIENT_SECRET=$(client_secret)
 
-                echo "🚀 Starting Terraform"
+                echo "📁 Switching to infra folder..."
                 cd infra
+
+                echo "🔧 Initializing Terraform..."
                 terraform init
 
-                echo "📦 Importing existing resource group"
+                echo "📥 Importing existing Resource Group..."
                 terraform import azurerm_resource_group.rg "/subscriptions/$ARM_SUBSCRIPTION_ID/resourceGroups/devops-rg" || true
 
+                echo "📥 Importing existing App Service Plan..."
+                terraform import azurerm_app_service_plan.plan "/subscriptions/$ARM_SUBSCRIPTION_ID/resourceGroups/devops-rg/providers/Microsoft.Web/serverFarms/devops-plan" || true
+
+                echo "🚀 Running Terraform apply..."
                 terraform apply -auto-approve
 
+                echo "🎉 Deployment completed"
