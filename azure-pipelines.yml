@@ -31,5 +31,9 @@ stages:
                 echo "🚀 Starting Terraform"
                 cd infra
                 terraform init
-                terraform import azurerm_resource_group.rg /subscriptions/$(4f654df7-d18f-4498-a919-94cc466fcbd6)/resourceGroups/devops-rg || true
+
+                echo "📦 Importing existing resource group"
+                terraform import azurerm_resource_group.rg "/subscriptions/$ARM_SUBSCRIPTION_ID/resourceGroups/devops-rg" || true
+
                 terraform apply -auto-approve
+
