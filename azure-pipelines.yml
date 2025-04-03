@@ -5,13 +5,13 @@ pool:
   vmImage: 'ubuntu-latest'
 
 variables:
-  - group: sec variable  # <-- Name of your variable group in Azure DevOps
+- group: sec variable  # 👈 This links the variable group you created
 
 stages:
   - stage: Terraform_Deploy
     displayName: 'Terraform Deployment'
     jobs:
-      - job: Deploy_Terraform
+      - job: TerraformJob
         displayName: 'Deploy Terraform Infra'
         steps:
           - checkout: self
@@ -19,16 +19,27 @@ stages:
           - task: AzureCLI@2
             displayName: 'Terraform Init + Import + Apply'
             inputs:
-              azureSubscription: 'AzureSPN'  # Your service connection name
+              azureSubscription: 'AzureSPN'  # Replace with your service connection name
               scriptType: 'bash'
               scriptLocation: 'inlineScript'
               inlineScript: |
-                cd infra
-                export ARM_CLIENT_ID=$(client_id)
-                export ARM_CLIENT_SECRET=$(client_secret)
+                echo "🔐 Exporting ARM_* credentials..."
                 export ARM_SUBSCRIPTION_ID=$(subscription_id)
                 export ARM_TENANT_ID=$(tenant_id)
+                export ARM_CLIENT_ID=$(client_id)
+                export ARM_CLIENT_SECRET=$(client_secret)
 
+                echo "📁 Moving into infra folder"
+                cd infra
+
+                echo "📦 Running terraform init"
                 terraform init
+
+                echo "📥 Importing Resource Group"
                 terraform import azurerm_resource_group.rg "/subscriptions/$ARM_SUBSCRIPTION_ID/resourceGroups/devops-rg" || true
+
+                echo "📥 Importing App Service Plan"
+                terraform import azurerm_app_service_plan.plan "/subscriptions/$ARM_SUBSCRIPTION_ID/resourceGroups/devops-rg/providers/Microsoft.Web/serverFarms/devops-plan" || true
+
+                echo "🚀 Running terraform apply"
                 terraform apply -auto-approve
