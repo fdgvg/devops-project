@@ -5,6 +5,7 @@ pool:
   vmImage: 'ubuntu-latest'
 
 variables:
+ - groups: sec variable
   azureSubscription: 'AzureSPN'
   resourceGroup: 'devops-rg'
   appServiceName: 'devops-app-dev-karthick'
