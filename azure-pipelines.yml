@@ -1,48 +1,71 @@
 trigger:
   - main
 
-# Load secret variables from Azure DevOps variable group
-variables:
-- group: sec variable  # Replace with your actual variable group name
-
 pool:
   vmImage: 'ubuntu-latest'
 
+variables:
+  azureSubscription: 'AzureSPN'
+  resourceGroup: 'devops-rg'
+  appServiceName: 'devops-app-dev-karthick'
+
 stages:
-  - stage: Terraform_Deploy
-    displayName: 'Terraform Deployment'
-    jobs:
-      - job: TerraformJob
-        displayName: 'Deploy Terraform Infra'
-        steps:
-          - checkout: self
+- stage: Terraform_Deploy
+  displayName: 'Terraform Deployment'
+  jobs:
+  - job: DeployTerraformInfra
+    displayName: 'Deploy Terraform Infra'
+    steps:
+    - checkout: self
 
-          - task: AzureCLI@2
-            displayName: 'Terraform Init + Import + Apply'
-            inputs:
-              azureSubscription: 'AzureSPN'  # Replace with your service connection name
-              scriptType: 'bash'
-              scriptLocation: 'inlineScript'
-              inlineScript: |
-                echo "✅ Exporting Azure authentication ENV vars..."
-                export ARM_SUBSCRIPTION_ID=$(subscription_id)
-                export ARM_TENANT_ID=$(tenant_id)
-                export ARM_CLIENT_ID=$(client_id)
-                export ARM_CLIENT_SECRET=$(client_secret)
+    - task: AzureCLI@2
+      displayName: 'Terraform Init + Import + Apply'
+      inputs:
+        azureSubscription: $(azureSubscription)
+        scriptType: 'bash'
+        scriptLocation: 'inlineScript'
+        inlineScript: |
+          cd infra
+          terraform init
 
-                echo "📁 Switching to infra folder..."
-                cd infra
+          echo "Importing existing resources..."
+          terraform import azurerm_resource_group.rg "/subscriptions/$(ARM_SUBSCRIPTION_ID)/resourceGroups/$(resourceGroup)" || true
+          terraform import azurerm_app_service_plan.plan "/subscriptions/$(ARM_SUBSCRIPTION_ID)/resourceGroups/$(resourceGroup)/providers/Microsoft.Web/serverFarms/devops-plan" || true
 
-                echo "🔧 Initializing Terraform..."
-                terraform init
+          terraform apply -auto-approve
 
-                echo "📥 Importing existing Resource Group..."
-                terraform import azurerm_resource_group.rg "/subscriptions/$ARM_SUBSCRIPTION_ID/resourceGroups/devops-rg" || true
+- stage: Deploy_Node_App
+  displayName: 'Deploy Node.js App to Azure App Service'
+  dependsOn: Terraform_Deploy
+  jobs:
+  - job: DeployNodeApp
+    displayName: 'Deploy to App Service'
+    steps:
+    - checkout: self
 
-                echo "📥 Importing existing App Service Plan..."
-                terraform import azurerm_app_service_plan.plan "/subscriptions/$ARM_SUBSCRIPTION_ID/resourceGroups/devops-rg/providers/Microsoft.Web/serverFarms/devops-plan" || true
+    - task: NodeTool@0
+      inputs:
+        versionSpec: '18.x'
+      displayName: 'Install Node.js'
 
-                echo "🚀 Running Terraform apply..."
-                terraform apply -auto-approve
+    - script: |
+        npm install
+        npm run build || true
+      displayName: 'Install dependencies and build'
 
-                echo "🎉 Deployment completed"
+    - task: ArchiveFiles@2
+      inputs:
+        rootFolderOrFile: '$(System.DefaultWorkingDirectory)'
+        includeRootFolder: false
+        archiveType: 'zip'
+        archiveFile: '$(Build.ArtifactStagingDirectory)/node-app.zip'
+        replaceExistingArchive: true
+      displayName: 'Archive app files'
+
+    - task: AzureWebApp@1
+      displayName: 'Deploy to Azure App Service (Dev)'
+      inputs:
+        azureSubscription: $(azureSubscription)
+        appType: 'webApp'
+        appName: $(appServiceName)
+        package: '$(Build.ArtifactStagingDirectory)/node-app.zip'
