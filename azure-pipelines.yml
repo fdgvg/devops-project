@@ -1,29 +1,26 @@
-trigger:
-  - main
-
-stages:
 - stage: Terraform_Deploy
   displayName: 'Terraform Infrastructure Deployment'
   jobs:
     - job: TerraformJob
-      displayName: 'Run Terraform to provision App Services'
       pool:
         vmImage: 'ubuntu-latest'
       steps:
         - checkout: self
 
         - task: AzureCLI@2
-          displayName: 'Terraform Init, Plan and Apply'
+          displayName: 'Terraform Init, Import RG, and Apply'
           inputs:
-            azureSubscription: 'AzureSPN'  # replace with your service connection
+            azureSubscription: 'AzureSPN'  # your service connection name
             scriptType: 'bash'
             scriptLocation: 'inlineScript'
             inlineScript: |
-              echo "Fetching Azure details"
-              export ARM_SUBSCRIPTION_ID=$(az account show --query id -o tsv)
-              export ARM_TENANT_ID=$(az account show --query tenantId -o tsv)
-              echo "Starting Terraform"
               cd infra
+
+              echo "⚙️ Initializing Terraform..."
               terraform init
-              terraform plan
+
+              echo "📥 Importing existing resource group..."
+              terraform import azurerm_resource_group.rg /subscriptions/4f654df7-d18f-4498-a919-94cc466fcbd6/resourceGroups/devops-rg || true
+
+              echo "🚀 Running Terraform Apply..."
               terraform apply -auto-approve
