@@ -4,14 +4,11 @@ trigger:
 pool:
   vmImage: 'ubuntu-latest'
 
-variables:
-- group: sec variable  # 👈 This links the variable group you created
-
 stages:
   - stage: Terraform_Deploy
     displayName: 'Terraform Deployment'
     jobs:
-      - job: TerraformJob
+      - job: DeployTerraformInfra
         displayName: 'Deploy Terraform Infra'
         steps:
           - checkout: self
@@ -19,7 +16,7 @@ stages:
           - task: AzureCLI@2
             displayName: 'Terraform Init + Import + Apply'
             inputs:
-              azureSubscription: 'AzureSPN'  # Replace with your service connection name
+              azureSubscription: 'AzureSPN'  # Replace with your Azure DevOps service connection name
               scriptType: 'bash'
               scriptLocation: 'inlineScript'
               inlineScript: |
@@ -29,10 +26,10 @@ stages:
                 export ARM_CLIENT_ID=$(client_id)
                 export ARM_CLIENT_SECRET=$(client_secret)
 
-                echo "📁 Moving into infra folder"
+                echo "📁 Moving into infra folder..."
                 cd infra
 
-                echo "📦 Running terraform init"
+                echo "⚙️ Running terraform init"
                 terraform init
 
                 echo "📥 Importing Resource Group"
@@ -40,6 +37,12 @@ stages:
 
                 echo "📥 Importing App Service Plan"
                 terraform import azurerm_app_service_plan.plan "/subscriptions/$ARM_SUBSCRIPTION_ID/resourceGroups/devops-rg/providers/Microsoft.Web/serverFarms/devops-plan" || true
+
+                echo "📥 Importing App Service - Dev"
+                terraform import azurerm_app_service.dev "/subscriptions/$ARM_SUBSCRIPTION_ID/resourceGroups/devops-rg/providers/Microsoft.Web/sites/devops-app-dev-karthick" || true
+
+                echo "📥 Importing App Service - QA"
+                terraform import azurerm_app_service.qa "/subscriptions/$ARM_SUBSCRIPTION_ID/resourceGroups/devops-rg/providers/Microsoft.Web/sites/devops-app-qa" || true
 
                 echo "🚀 Running terraform apply"
                 terraform apply -auto-approve
